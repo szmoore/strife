@@ -35,7 +35,7 @@ timeout = 10 # Magical timeout to wait for the automatic redirects to work
 bouncemail = "matches@ucc.asn.au" # Will change to wheel@ if wheel don't murder me for this
 
 # Email lists and the forum that they go to
-mail2forum = {"ucc@ucc.asn.au" : "General", "tech@ucc.asn.au" : "Tech", "forum@ucc.asn.au" : "General"}
+mail2forum = {"ucc@ucc.asn.au" : "General", "tech@ucc.asn.au" : "Tech", "forum@ucc.asn.au" : "General", "hwc@ucc.asn.au" : "Tech"}
 
 # Numerical ID for the forums
 forum2id = {"General" : "2", "Tech" : "4"}
