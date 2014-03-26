@@ -24,8 +24,9 @@ import BeautifulSoup
 import base64
 
 # Keep the credentials in files that won't be under git
-username = open(".username","r").read().strip(" \r\n")
-password = open(".password","r").read().strip(" \r\n")
+if __name__ == "__main__" and sys.argv != None and len(sys.argv) >= 1:
+	username = open(os.path.dirname(sys.argv[0])+"/.username","r").read().strip(" \r\n")
+	password = open(os.path.dirname(sys.argv[0])+"/.password","r").read().strip(" \r\n")
 browser = twill.get_browser()
 
 
@@ -34,7 +35,7 @@ timeout = 10 # Magical timeout to wait for the automatic redirects to work
 bouncemail = "matches@ucc.asn.au" # Will change to wheel@ if wheel don't murder me for this
 
 # Email lists and the forum that they go to
-mail2forum = {"ucc@ucc.asn.au" : "General", "tech@ucc.asn.au" : "Tech"}
+mail2forum = {"ucc@ucc.asn.au" : "General", "tech@ucc.asn.au" : "Tech", "forum@ucc.asn.au" : "General"}
 
 # Numerical ID for the forums
 forum2id = {"General" : "2", "Tech" : "4"}
@@ -247,13 +248,14 @@ if __name__ == "__main__":
 	if forumName != None: #Yes, yes it is
 		# Work out list to associate the post with
 		forum = forumName.groups()[0]
-		email = None
+		emails = []
 		for k in mail2forum: # Check each key
 			if mail2forum[k] == forum:
-				email = k
-				break
+				emails += [k]
+
 		# Couldn't find a list
-		if email == None:
+		if len(emails) == 0:
+			EmailDebug("No list associated with forum " + forum)
 			sys.exit(0)
 
 		# View the post; it is the first URL
@@ -264,8 +266,9 @@ if __name__ == "__main__":
 			sys.exit(0) # Take no action if I authored the post
 		if (post["content"] == ""):
 			sys.exit(0)
-		EmailDebug("Got forum notification; post "+urls[0]+" to list")
-		EmailPost(post, email)
+		EmailDebug("Got forum notification; post "+urls[0]+" to lists " + str(emails))
+		for e in emails:
+			EmailPost(post, e)
 		ForumLogout()
 		sys.exit(0)
 
