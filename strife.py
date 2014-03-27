@@ -158,7 +158,13 @@ def GetPost(url, plainText=True):
 
 	# If no post was specified, search for the newest post
 	if p == None:
-		div = soup.findAll("div", {"class" : re.compile(r"^post bg[1|2].*$")})[-1]
+		div = soup.findAll("div", {"class" : re.compile(r"^post bg[1|2].*$")})
+		if len(div) == 0:
+			div = soup.findAll("div", {"class" : "post"})
+		if len(div) == 0:
+			EmailDebug("Can't find post!? URL is "+url)
+			sys.exit(0)
+		div = div[-1]
 		p = re.search(r"p(\d+)", div["id"]).groups()[0]
 	else:
 		# Find div for post
