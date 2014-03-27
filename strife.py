@@ -253,12 +253,21 @@ if __name__ == "__main__":
 		emails = []
 		for k in mail2forum: # Check each key
 			if mail2forum[k] == forum:
-				emails += [k]
+				# Don't double post, and also don't email myself (!)
+				listname, domain = k.split("@")
+				if listname == "forum":
+					continue
+				if domain == "ucc.gu.uwa.edu.au":
+					domain = "ucc.asn.au"
+				k = listname+"@"+domain
+				if k not in emails:
+					emails += [k]
 
 		# Couldn't find a list
 		if len(emails) == 0:
 			EmailDebug("No list associated with forum " + forum)
 			sys.exit(0)
+
 
 		# View the post; it is the first URL
 		urls = re.findall(r"(https://.*)\n", msg.get_payload())
