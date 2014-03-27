@@ -102,7 +102,9 @@ def PostEmail(email, forum):
 
 	# Content to post
 	text = "On the lists, " + email["from"] + " wrote:\n\n"
-	text += re.sub(r"Unsubsribe here: .*\n", "", email.get_payload()) + "\n\n"
+	for line in email.get_payload().split("\n"):
+		if re.match(r"Unsubscribe here: (.*)",line) == None:
+			text += line + "\n"
 	text += "-----\n"
 	srcemail = "".join([e for e in msg["from"].split() if '@' in e])[1:-1]
 	name = srcemail.split("@")[0]
@@ -295,10 +297,7 @@ if __name__ == "__main__":
 
 		# Logout so that we will receive notifications again
 		ForumLogout()
-		sys.exit(0)
 	
-	# Bounce everything else
-	EmailDebug("Not cross posting email from " + msg["from"] + " to " + msg["to"] + "\n\nSubject: " + msg["subject"] + "\nPayload:\n\n " + msg.get_payload())
 	sys.exit(0)
 
 
