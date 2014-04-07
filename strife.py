@@ -31,14 +31,33 @@ browser = twill.get_browser()
 
 
 forumurl = "https://forum.ucc.asn.au"
-timeout = 10 # Magical timeout to wait for the automatic redirects to work
+timeout = 20 # Magical timeout to wait for the automatic redirects to work
 bouncemail = "matches@ucc.asn.au" # Will change to wheel@ if wheel don't murder me for this
 
 # Email lists and the forum that they go to
-mail2forum = {"ucc@ucc.asn.au" : "General", "tech@ucc.asn.au" : "Tech", "forum@ucc.asn.au" : "General", "hwc@ucc.asn.au" : "Tech", "ucc@ucc.gu.uwa.edu.au" : "General", "tech@ucc.gu.uwa.edu.au" : "Tech", "hwc@ucc.gu.uwa.edu.au" : "Tech"}
+mail2forum = {
+	"ucc" : "General",
+	"tech" : "Tech",
+	"ucc-announce" : "News/Announcements",
+	"strife" : "Strife",
+	"hwc" : "Tech"
+}
+
+# Forums and the lists that they go to
+forum2mail = {
+	"General" : "ucc",
+	"Tech" : "tech",
+	"News/Announcements" : "ucc",
+	"Strife" : "strife",
+}
 
 # Numerical ID for the forums
-forum2id = {"General" : "2", "Tech" : "4"}
+forum2id = {
+	"General" : "2", 
+	"Tech" : "4", 
+	"News / Announcements" : "5", 
+	"Strife" : "8"
+}
 
 def ForumLogin(force = False):
 	""" Login to the forum
@@ -105,10 +124,12 @@ def PostEmail(email, forum):
 	for line in email.get_payload().split("\n"):
 		if re.match(r"Unsubscribe here: (.*)",line) == None:
 			text += line + "\n"
-	text += "-----\n"
-	srcemail = "".join([e for e in msg["from"].split() if '@' in e])[1:-1]
-	name = srcemail.split("@")[0]
-	text += "View the lists at: http://lists.ucc.asn.au/\n"
+
+	# Not needed
+	#text += "-----\n"
+	#srcemail = "".join([e for e in msg["from"].split() if '@' in e])[1:-1]
+	#name = srcemail.split("@")[0]
+	#text += "View the lists at: http://lists.ucc.asn.au/\n"
 
 	twill.commands.fv("postform", "message", text)
 	twill.commands.browser.submit("post")
@@ -189,11 +210,11 @@ def GetPost(url, plainText=True):
 		# Change images
 		imgs = content.findAll("img")
 		for i in imgs:
-			i.replaceWith("#Image: "+i["src"] + "#")
+			i.replaceWith(i["src"])
 		# Change links
 		links = content.findAll("a")
 		for l in links:
-			l.replaceWith("#Link: "+l["href"]+"#")
+			l.replaceWith(l["href"])
 
 		# Any other html tags will get lost here
 		# Use '#' as a hacky way to put newlines in (they are also lost)
@@ -257,17 +278,9 @@ if __name__ == "__main__":
 		# Work out list to associate the post with
 		forum = forumName.groups()[0]
 		emails = []
-		for k in mail2forum: # Check each key
-			if mail2forum[k] == forum:
-				# Don't double post, and also don't email myself (!)
-				listname, domain = k.split("@")
-				if listname == "forum":
-					continue
-				if domain == "ucc.gu.uwa.edu.au":
-					domain = "ucc.asn.au"
-				k = listname+"@"+domain
-				if k not in emails:
-					emails += [k]
+		for k in forum2mail: # Check each key
+			if k == forum and k not in emails:
+				emails += [k+"@ucc.asn.au"]
 
 		# Couldn't find a list
 		if len(emails) == 0:
@@ -284,8 +297,12 @@ if __name__ == "__main__":
 		if (post["content"] == ""):
 			sys.exit(0)
 		EmailDebug("Got forum notification; post "+urls[0]+" to lists " + str(emails))
+
 		for e in emails:
-			EmailPost(post, e)
+			try:
+				EmailPost(post, e)
+			except Exception,ex:
+				EmailDebug("EmailPost to "+e+" failed: " + str(ex))
 		ForumLogout()
 		sys.exit(0)
 
@@ -300,19 +317,23 @@ if __name__ == "__main__":
 		for t in targets:
 			for k in mail2forum:
 				# Horrible regex that in theory gets only email addresses regardless of where they are, and no other crap
-				if k not in valid_targets and re.search(r"(^|[\W<\"\'])"+k+"($|[\W>\"\'])", t, re.IGNORECASE) != None:
+				if k not in valid_targets and re.search(r"(^|[\W<\"\'])"+k+"@ucc.*($|[\W>\"\'])", t, re.IGNORECASE) != None:
 					valid_targets += [k]
 	
 
-		EmailDebug("Email from list to forum " + msg["from"] + " to " + msg["to"] + " valid_targets: " + str(valid_targets) + "\n\nSubject: " + msg["subject"] + "\nPayload:\n\n " + msg.get_payload())
+		EmailDebug("Email from list to forum " + msg["from"] + " to " + msg["to"] + " valid_targets: " + str(valid_targets) + " -> " + str(map(lambda e : mail2forum[e], valid_targets)) + "\n\nSubject: " + msg["subject"] + "\nPayload:\n\n " + msg.get_payload())
 
 		# For each target, post to the forum
 		for t in valid_targets:
-			p = PostEmail(msg, forum2id[mail2forum[t]])
+			try:
+				p = PostEmail(msg, forum2id[mail2forum[t]])
+			except Exception,ex:
+				EmailDebug("Post email to "+mail2forum[t]+" failed: " + str(ex) + "\nHTML was " + GetHTML())
 
 		# Logout so that we will receive notifications again
 		ForumLogout()
 	
+	EmailDebug("Success!")
 	sys.exit(0)
 
 
