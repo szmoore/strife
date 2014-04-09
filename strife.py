@@ -40,7 +40,8 @@ mail2forum = {
 	"tech" : "Tech",
 	"ucc-announce" : "News/Announcements",
 	"strife" : "Strife",
-	"hwc" : "Tech"
+	"hwc" : "Tech",
+	"committee" : "Committee"
 }
 
 # Forums and the lists that they go to
@@ -49,6 +50,7 @@ forum2mail = {
 	"Tech" : "tech",
 	"News/Announcements" : "ucc",
 	"Strife" : "strife",
+	"Committee" : "committee"
 }
 
 # Numerical ID for the forums
@@ -290,7 +292,7 @@ if __name__ == "__main__":
 		emails = []
 		for k in forum2mail: # Check each key
 			if k == forum and k not in emails:
-				emails += [k+"@ucc.asn.au"]
+				emails += [forum2mail[k]+"@ucc.asn.au"]
 
 		# Couldn't find a list
 		if len(emails) == 0:
