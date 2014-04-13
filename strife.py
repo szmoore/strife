@@ -6,7 +6,7 @@
 	Setup:
 	 1. Subscribe a mail address (eg: forum@ucc.asn.au) to all mailing lists
 	 2. Subscribe to all topics in the forum
-	 3. Edit variables appropriately, include list/forums to watch in variable `mail2forum`
+	 3. Edit variables appropriately, include list/forums to watch in variable `mail2forum` and formums in `forum2mail`
 	 4. Edit /etc/aliases to pass email to this script
 	 5. Profit (or get murdered)
 
@@ -48,7 +48,7 @@ mail2forum = {
 forum2mail = {
 	"General" : "ucc",
 	"Tech" : "tech",
-	"News/Announcements" : "ucc",
+	"News/Announcements" : "ucc", #Autoposting to ucc-announce is bad.
 	"Strife" : "strife",
 	"Committee" : "committee"
 }
@@ -171,8 +171,6 @@ def GetPost(url, plainText=True):
 	if p != None:
 		p = p.groups()[0]
 
-	
-
 	# Visit post
 	twill.commands.go(url)
 	ForumLogin()
@@ -205,6 +203,10 @@ def GetPost(url, plainText=True):
 
 	# Get title of post
 	title = div.find("a", {"href" : "#p"+p}).text.strip()
+	# Replace quotation marks
+	title = title.replace("&quot;", "\"")
+	
+
 	# Get author of post
 	author = div.find("p", {"class" : "author"})
 	author = author.find("strong").text.strip()
@@ -214,6 +216,9 @@ def GetPost(url, plainText=True):
 	if not plainText:
 		content = str(content) # TODO: Make email cope with this (?)
 	else:
+		
+		
+
 		# Change blockquotes
 		quotes = content.findAll("blockquote")
 		for q in quotes:
@@ -227,10 +232,14 @@ def GetPost(url, plainText=True):
 		links = content.findAll("a")
 		for l in links:
 			l.replaceWith(l["href"])
+		# <br>
+		brrs = content.findAll("br")
+		for b in brrs:
+			b.replaceWith("#")		
 
 		# Any other html tags will get lost here
 		# Use '#' as a hacky way to put newlines in (they are also lost)
-		content = content.text.strip().replace("#", "\n")
+		content = content.text.strip().replace("#", "\n").replace("&quot;","\"");
 
 	# Return dict representing the post
 	return {"url" : url, "title" : title, "author" : author, "content" : content}
@@ -272,7 +281,7 @@ def EmailDebug(text):
 	Doing the pythonic thing don't do the things unless we are __main__
 """
 if __name__ == "__main__":
-	#EmailDebug("Got an email...")
+	EmailDebug("I got an email!")
 	# Parse email from stdin (to be piped via /etc/aliases in postfix)
 	full_message = sys.stdin.readlines()
 	msg = email.message_from_string("".join(full_message))
@@ -287,6 +296,7 @@ if __name__ == "__main__":
 	# NOTE Parsing subject doesn't work since phpbb does some kind of shitty encoding on it that python doesn't understand
 	forumName = re.search(r"You are receiving this notification because you are watching the forum,\n\"(.*)\" at \"forum.ucc.asn.au\"", msg.get_payload(), re.IGNORECASE)
 	if forumName != None: #Yes, yes it is
+		EmailDebug("Getting a notification from the forum...")
 		# Work out list to associate the post with
 		forum = forumName.groups()[0]
 		emails = []
@@ -304,23 +314,25 @@ if __name__ == "__main__":
 		urls = re.findall(r"(https://.*)\n", msg.get_payload())
 		assert(len(urls) > 0)
 		post = GetPost(urls[0]) # Get post
-		if (post["author"] == username):
-			sys.exit(0) # Take no action if I authored the post
-		if (post["content"] == ""):
+		EmailDebug("Got forum notification; post "+urls[0]+" from forum \""+forum+"\" to lists " + str(emails))
+		if (post["author"] == username or post["content"] == ""):
+			EmailDebug("Post is empty or my own; abort.")
 			sys.exit(0)
-		EmailDebug("Got forum notification; post "+urls[0]+" to lists " + str(emails))
 
 		for e in emails:
 			try:
 				EmailPost(post, e)
+				EmailDebug("Posted to "+e+" successfully!")
 			except Exception,ex:
 				EmailDebug("EmailPost to "+e+" failed: " + str(ex))
 		ForumLogout()
+		EmailDebug("Logged out successfully.");
 		sys.exit(0)
 
 	# If message is not a form -> lists post,
 	if re.search(r"^On the forum, (.*) said:", msg.get_payload()) == None:
 
+		EmailDebug("Got email to list; finding targets")
 		# Look at "to" and "cc" emails and pick those that are being posted to the forum
 		targets = msg["to"].split(",")
 		if "cc" in msg:
@@ -339,13 +351,15 @@ if __name__ == "__main__":
 		for t in valid_targets:
 			try:
 				p = PostEmail(msg, forum2id[mail2forum[t]])
+				EmailDebug("Successfully posted to target " + str(t))
 			except Exception,ex:
 				EmailDebug("Post email to "+mail2forum[t]+" failed: " + str(ex) + "\nHTML was " + GetHTML())
 
 		# Logout so that we will receive notifications again
 		ForumLogout()
+		EmailDebug("Successfully logged out.");
 	
-	EmailDebug("Success!")
+	EmailDebug("Exiting.")
 	sys.exit(0)
 
 
